@@ -1,0 +1,25 @@
+feat: initial release — intelligent LLM routing plugin for DeepSeek Harness
+
+dsh-intelligent-router (package: dsh-llm-router) registers as the 'auto'
+provider in DeepSeek Harness and routes every request to the best member
+of a configured route group.
+
+- Route groups with 4 strategies: order, smart (task-size aware),
+  rotate, usage (least-used first)
+- Rule engine: minTokens / hasImage / anyAgent / intent conditions with
+  first-match pinning; intent labeled by a configurable classifier model
+- Stays cache-affinity mode (off / turn / auto / session, default
+  session): keeps the last successful member at the front while the
+  vendor prompt cache is worth keeping, keyed per DSH session
+- Automatic failover with three-tier error classification
+  (TRANSIENT / PERMANENT / UNKNOWN) including network-text detection
+- Magpie-style Settings UI (zh/en) with save-time validation and live
+  persistence through the DSH settings service
+- Quota tracking, host-side monitoring metrics, cost estimation
+- 175 unit tests (vitest), strict TypeScript, ESLint
+- GitHub Actions CI (lint, typecheck, build, test on Node 20/22),
+  issue/PR templates, Dependabot
+
+Licensed under MIT.
+
+Signed-off-by: dongjiang1989 <dongjiang1989@users.noreply.github.com>

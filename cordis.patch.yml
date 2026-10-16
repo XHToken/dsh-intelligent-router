@@ -1,0 +1,24 @@
+# DSH-LLM-Router 配置
+# 默认为空 - 通过 Settings UI (设置/内置插件/LLM 路由器) 配置模型和路由策略
+
+- insert:
+    - id: llm-router
+      name: 'dsh-llm-router'
+      config:
+        enabled: true
+        defaultGroup: 'default'
+        routeGroups:
+          - id: 'default'
+            name: 'Default'
+            members: []
+            strategy: 'order'
+            enabled: true
+        fallback:
+          enabled: true
+          maxRetries: 3
+          retryDelay: 1000
+        quotaTracking:
+          enabled: true
+        advanced:
+          logLevel: 'info'
+          metricsEnabled: true

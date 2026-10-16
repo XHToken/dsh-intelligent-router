@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: DeepSeek Harness (upstream)
+    url: https://github.com/deepseek-ai/deepseek-harness/issues
+    about: Issues with DSH itself (not this plugin) belong upstream.
+  - name: Security vulnerability
+    url: https://github.com/XHToken/dsh-intelligent-router/security/advisories/new
+    about: Please report security vulnerabilities privately — do not open a public issue.
