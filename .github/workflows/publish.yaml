@@ -1,0 +1,83 @@
+name: Publish
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.release.tag_name }}
+  cancel-in-progress: false
+
+jobs:
+  publish-github-packages:
+    name: Build, verify, publish @xhtoken/dsh-llm-router
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout release tag
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.release.tag_name }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm run build
+
+      - name: Unit tests
+        run: pnpm test:run
+
+      - name: Release tag matches package version
+        run: |
+          TAG="${{ github.event.release.tag_name }}"
+          VERSION="$(node -p "require('./package.json').version")"
+          if [ "${TAG#v}" != "$VERSION" ]; then
+            echo "::error::Release tag '$TAG' does not match package.json version '$VERSION'"
+            exit 1
+          fi
+          echo "Publishing version $VERSION"
+
+      # GitHub Packages only accepts scoped package names, while the repo keeps
+      # the unscoped identity (dsh-llm-router) for DSH plugin resolution.
+      # Publish a scoped variant built from the same packed artifact.
+      - name: Stage scoped variant
+        run: |
+          TGZ="$(pnpm pack --pack-destination /tmp | tail -1)"
+          mkdir -p stage
+          tar -xzf "$TGZ" -C stage --strip-components=1
+          node -e "
+            const fs = require('fs');
+            const p = JSON.parse(fs.readFileSync('stage/package.json', 'utf8'));
+            p.name = '@xhtoken/dsh-llm-router';
+            p.publishConfig = { registry: 'https://npm.pkg.github.com' };
+            fs.writeFileSync('stage/package.json', JSON.stringify(p, null, 2) + '\n');
+          "
+          test -f stage/dist/index.js
+          test -f stage/dist/client/index.js
+          test -f stage/cordis.patch.yml
+          test -f stage/compatibility.json
+          grep -q '__ModuleLoader__' stage/dist/client/index.js
+          echo "staged @xhtoken/dsh-llm-router@$(node -p "require('./stage/package.json').version")"
+
+      - name: Publish to GitHub Packages
+        working-directory: stage
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "@xhtoken:registry=https://npm.pkg.github.com" > .npmrc
+          echo "//npm.pkg.github.com/:_authToken=${NODE_AUTH_TOKEN}" >> .npmrc
+          npm publish --ignore-scripts

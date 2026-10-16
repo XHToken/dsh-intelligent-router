@@ -1,0 +1,129 @@
+# DSH-LLM-Router 完整配置
+# 所有路由功能都可以通过此文件配置
+
+- id: llm-router
+  name: 'dsh-llm-router'
+  config:
+    # 启用路由器
+    enabled: true
+
+    # 默认路由组（使用 AUTO 模型时使用）
+    defaultGroup: 'production'
+
+    # ═══════════════════════════════════════════════════════════
+    # 路由组配置
+    # ═══════════════════════════════════════════════════════════
+    routeGroups:
+      # 生产环境路由组
+      - id: 'production'
+        name: 'Production Models'
+        description: '生产环境使用的模型'
+        members:
+          # 主模型：DeepSeek
+          - provider: 'deepseek-official'
+            model: 'deepseek-v4-flash'
+            priority: 1          # 优先级（数字越小越优先）
+            weight: 1            # 权重（用于 weighted 策略）
+            enabled: true
+
+          # 备用模型：Ollama 本地
+          - provider: 'ollama'
+            model: 'llama3.2'
+            priority: 2
+            weight: 1
+            enabled: true
+
+        # 路由策略（已实现）：order | rotate | usage | smart
+        # 注意：pace / weighted / intent 在 schema 中声明但尚未实现，配置后会静默降级为 order
+        strategy: 'order'
+        enabled: true
+
+      # 开发环境路由组（示例）
+      - id: 'development'
+        name: 'Development Models'
+        description: '开发环境使用的模型'
+        members:
+          - provider: 'ollama'
+            model: 'llama3.2'
+            priority: 1
+            enabled: true
+        strategy: 'order'
+        enabled: false  # 默认禁用
+
+    # ═══════════════════════════════════════════════════════════
+    # 意图路由配置（可选）
+    # ⚠️ 当前实现说明：意图分类实际由路由组级 classifierModel +
+    #    rules[].intent 条件驱动；下面 intentRouting 块中的
+    #    confidenceThreshold / cacheEnabled / cacheTTL 等字段
+    #    暂未被代码消费（保留为规划中配置）。
+    # ═══════════════════════════════════════════════════════════
+    intentRouting:
+      enabled: false              # 是否启用意图路由
+      classifierProvider: 'ollama'  # 分类器使用的 provider
+      classifierModel: 'llama3.2'   # 分类器使用的模型
+      confidenceThreshold: 0.7     # 信心阈值（0-1，暂未生效）
+      cacheEnabled: true           # 是否缓存分类结果（暂未生效）
+      cacheTTL: 300000             # 缓存时间（毫秒，暂未生效）
+
+    # ═══════════════════════════════════════════════════════════
+    # 配额管理
+    # ═══════════════════════════════════════════════════════════
+    quotaTracking:
+      enabled: true                # 是否启用配额跟踪
+      syncWithTokenMeter: true     # 是否与 DSH TokenMeter 同步
+
+    # ═══════════════════════════════════════════════════════════
+    # 故障转移配置
+    # ═══════════════════════════════════════════════════════════
+    fallback:
+      enabled: true                # 是否启用自动故障转移
+      maxRetries: 3                # 最大重试次数
+      retryDelay: 1000             # 重试延迟（毫秒）
+      recoverableErrors:           # 可恢复的错误类型
+        - 'RATE_LIMIT'             # 限流
+        - 'QUOTA'                  # 配额不足
+        - 'TIMEOUT'                # 超时
+        - 'SERVER_ERROR'           # 服务器错误
+        # - 'AUTH'                 # 认证失败（通常不可恢复）
+        # - 'NETWORK_ERROR'        # 网络错误
+
+    # ═══════════════════════════════════════════════════════════
+    # 高级配置
+    # ═══════════════════════════════════════════════════════════
+    advanced:
+      logLevel: 'info'             # 日志级别：error | warn | info | debug
+      metricsEnabled: true         # 是否启用指标收集
+      cacheEnabled: true           # 是否启用路由决策缓存
+      cacheTTL: 60000              # 缓存时间（毫秒）
+
+# ═══════════════════════════════════════════════════════════
+# 配置说明
+# ═══════════════════════════════════════════════════════════
+
+# 路由策略说明（已实现 4 种）：
+# - order:    按优先级顺序使用，失败时切换到下一个
+# - rotate:   轮询使用，每次请求使用下一个成员
+# - usage:    最少使用优先，平衡负载
+# - smart:    按任务大小选择：估算 tokens < 4096 时本地(ollama)优先，否则云端优先，同级按 priority
+#
+# 未实现（schema 中声明，配置后静默降级为 order）：
+# - pace:     基于消耗速率选择，均匀分配负载
+# - weighted: 加权随机选择，按权重比例分配
+# - intent:   独立意图策略（意图路由目前通过 rules[].intent + classifierModel 实现）
+
+# 使用方式：
+# 在 DSH 中选择：
+#   Provider: auto
+#   Model: AUTO
+#
+# 路由器会自动：
+#   1. 使用 defaultGroup 指定的路由组
+#   2. 根据 strategy 选择最佳模型
+#   3. 如果失败，自动故障转移到下一个模型
+#   4. 返回结果
+
+# 指定路由组：
+# 如果想使用特定的路由组，可以：
+#   Provider: group/production   （使用 production 组）
+#   Provider: group/development  （使用 development 组）
+#   Model: AUTO
