@@ -70,7 +70,7 @@
   },
   "homepage": "https://github.com/XHToken/dsh-intelligent-router#readme",
   "dependencies": {
-    "@deepseek-ai/schemastery": "^3.18.4"
+    "@deepseek-ai/schemastery": "^3.18.5"
   },
   "peerDependencies": {
     "@deepseek-ai/dsh": ">=0.2.0-rc.2"
