@@ -91,7 +91,7 @@
     "playwright": "^1.64.1",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
-    "tsup": "^8.0.1",
+    "tsup": "^9.0.0",
     "typescript": "^5.3.3",
     "vitest": "^1.2.0"
   },
